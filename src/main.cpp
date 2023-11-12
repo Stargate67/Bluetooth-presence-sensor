@@ -1,10 +1,6 @@
 #include <Arduino.h>
 #include "BLEDevice.h"
 
-
-// put function declarations here:
-int myFunction(int, int);
-
 int Lampara = 33;
 int Contador = 0;
 static BLEAddress *pServerAddress;
@@ -13,8 +9,9 @@ BLEClient*  pClient;
 bool deviceFound = false;
 bool Encendida = false;
 bool BotonOff = false;
-String knownAddresses[] = { "your:device:mac:address"};
+String knownAddresses[] = { "bc:6a:d1:b0:29:f9", "bc:6a:d1:b0:29:fc"};
 unsigned long entry;
+
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
   uint8_t* pData,
@@ -25,10 +22,11 @@ static void notifyCallback(
   Serial.print(" of data length ");
   Serial.println(length);
 }
+
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice Device){
-      //Serial.print("BLE Advertised Device found: ");
-      //Serial.println(Device.toString().c_str());
+      Serial.print("BLE Advertised Device found: ");
+      Serial.println(Device.toString().c_str());
       pServerAddress = new BLEAddress(Device.getAddress()); 
       bool known = false;
       bool Master = false;
