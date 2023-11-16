@@ -1,8 +1,6 @@
 #include <Arduino.h>
 #include "BLEDevice.h"
 #include "OTA.h"
-//#include <ESP8266WiFi.h>
-//#include <ESPAsyncTCP.h>
 #include "ModbusIP_ESP8266.h"
 
 /************************************************/
@@ -25,7 +23,6 @@ unsigned long time1_now = 0;
 /************************************************/
 /*              FIN Section MODBUS              */
 /************************************************/
-
 
 struct strDevices {
 String Name;
@@ -132,8 +129,6 @@ void setup() {
   /************************************************/
   /*     FIN Section MODBUS SETUP                 */
   /************************************************/
-
-
 }
 
 void Bluetooth() {
@@ -159,7 +154,7 @@ void loop() {
   #endif
   Bluetooth();
 
-/************************************************/
+  /************************************************/
   /*           Section MODBUS Main loop           */
   /************************************************/
     
