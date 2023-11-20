@@ -16,8 +16,8 @@ const int TEST_HREG = 1;
 //ModbusIP object
 ModbusIP mb;
 int i=0;
-int MdbTemp =0;
-int MdbHR = 0;
+int MdbStatus =0;
+int MdbPresence = 0;
 int period = 10000; //10s
 unsigned long time_now = 0;
 unsigned long time1_now = 0;
@@ -165,20 +165,11 @@ void loop() {
     
   if(millis() >= time_now + period) { //each 10 seconds
     time_now = millis();
-    if (!aht.getEvent(&humidity, &temp)) {
-      sTemperature = "0";
-      sHumidity = "0";
-      MdbTemp = 0;
-      MdbHR = 0;
-    } else {
-      sTemperature = String(temp.temperature);
-      sHumidity    = String(humidity.relative_humidity);
-      MdbTemp = int(temp.temperature * 100);
-      MdbHR   = int(humidity.relative_humidity * 100); 
-    }
-
-    mb.Hreg(0, MdbTemp); // update local register with offset 0 by Temperature
-    mb.Hreg(1, MdbHR); // update local register with offset 1 by Humidity
+    MdbStatus = Allume;
+    MdbPresence = Allume;
+ 
+    mb.Hreg(0, MdbStatus); // update local register with offset 0 by Temperature
+    mb.Hreg(1, MdbPresence); // update local register with offset 1 by Humidity
  
     i++;
     if (i>65535) i=0;
