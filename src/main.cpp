@@ -1,8 +1,11 @@
 #include <Arduino.h>
 #include "BLEDevice.h"
 #include "OTA.h"
+<<<<<<< HEAD
 //#include <ESP8266WiFi.h>
 //#include <ESPAsyncTCP.h>
+=======
+>>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
 #include "ModbusIP_ESP8266.h"
 
 /************************************************/
@@ -25,7 +28,10 @@ unsigned long time1_now = 0;
 /************************************************/
 /*              FIN Section MODBUS              */
 /************************************************/
+<<<<<<< HEAD
 
+=======
+>>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
 
 struct strDevices {
 String Name;
@@ -73,7 +79,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
             deviceFound = false;
           }
           Device.getScan()->stop();
-          delay(100);
+          //delay(100);
         }
       }
     }
@@ -114,7 +120,11 @@ void setup() {
   // Print ESP32 Local IP Address
   Serial.println(WiFi.localIP());
   
+<<<<<<< HEAD
   setupOTA("BLE Sensor", ssid, password);
+=======
+  setupOTA("BLE_Sensor", ssid, password);
+>>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
 
   /************************************************/
   /*              Section MODBUS SETUP            */
@@ -132,24 +142,35 @@ void setup() {
   /************************************************/
   /*     FIN Section MODBUS SETUP                 */
   /************************************************/
+<<<<<<< HEAD
 
 
+=======
+    /**
+   * Enable OTA update
+   */
+  ArduinoOTA.begin();
+>>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
 }
 
 void Bluetooth() {
   Serial.println();
   Serial.println("BLE Scan restarted.....");
   deviceFound = false;
-  BLEScanResults scanResults = pBLEScan->start(5);
+  BLEScanResults scanResults = pBLEScan->start(3);
   if (deviceFound) {
     //Serial.println("Allumer la lampe");
     Allume = true;
     digitalWrite(Lampe, HIGH);
+<<<<<<< HEAD
     delay(10000);
+=======
+    //delay(10000);
+>>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
   } else {
     Allume = false;
     digitalWrite(Lampe, LOW);
-    delay(1000);
+    //delay(1000);
   }
 }
 
@@ -157,6 +178,7 @@ void loop() {
   #ifndef ESP32_RTOS
     ArduinoOTA.handle();
   #endif
+<<<<<<< HEAD
   Bluetooth();
 
 /************************************************/
@@ -164,16 +186,32 @@ void loop() {
   /************************************************/
     
   if(millis() >= time_now + period) { //each 10 seconds
+=======
+  
+  //Bluetooth();
+
+  /************************************************/
+  /*           Section MODBUS Main loop           */
+  /************************************************/
+    
+  //if(millis() >= time_now + period) { //each 10 seconds
+>>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
     time_now = millis();
     MdbStatus = Allume;
     MdbPresence = Allume;
  
+<<<<<<< HEAD
     mb.Hreg(0, MdbStatus); // update local register with offset 0 by Temperature
     mb.Hreg(1, MdbPresence); // update local register with offset 1 by Humidity
+=======
+    mb.Hreg(0, MdbStatus); // update local register with offset 0 by Status
+    mb.Hreg(1, MdbPresence); // update local register with offset 1 by Presence
+>>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
  
     i++;
     if (i>65535) i=0;
     //Voir doc API PDF dans la librairie "modbus-esp8266-master"
+<<<<<<< HEAD
     mb.Hreg(2, i); // update local register with offset 3 by counter
   }
 
@@ -182,6 +220,16 @@ void loop() {
     //Call once inside loop() - all magic here
     mb.task();
   }
+=======
+    mb.Hreg(2, i); // update local register with offset 2 by counter
+  //}
+
+  //if(millis() >= time1_now + 50){ //Process MB client request each second
+    time1_now = millis();
+    //Call once inside loop() - all magic here
+    mb.task();
+  //}
+>>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
   /************************************************/
   /*         FIN Section MODBUS Main loop         */
   /************************************************/
