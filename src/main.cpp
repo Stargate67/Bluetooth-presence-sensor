@@ -94,7 +94,10 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 void Bluetooth() {
   Serial.println();
   Serial.println("BLE Scan restarted.....");
-  BLEScanResults scanResults = pBLEScan->start(3);
+  BLEScanResults scanResults = pBLEScan->start(1);
+  Serial.println(scanResults.getCount());
+  pBLEScan->clearResults();
+
   if (deviceFound) {
     iDevFound = 5;
     Allume = true;
@@ -180,7 +183,6 @@ void setup(void) {
   /************************************************/
   /*     FIN Section MODBUS SETUP                 */
   /************************************************/
-
 }
 
 void loop(void) {
@@ -191,9 +193,8 @@ void loop(void) {
   /*           Section MODBUS Main loop           */
   /************************************************/
 
-  if(millis() >= time1_now + 50){ //Process MB client request each second
+  if(millis() >= time1_now + 20){ //Process MB client request each second
     time1_now = millis();
-
     i++;
     if (i>65535) i=0;
 
@@ -208,5 +209,4 @@ void loop(void) {
     //Call once inside loop() - all magic here
     mb.task();
   }
-
 }
