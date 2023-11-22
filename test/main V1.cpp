@@ -29,7 +29,7 @@ const int TEST_HREG = 1;
 //ModbusIP object
 ModbusIP mb;
 int i=0;
-int Cptr=0;
+int u=0;
 int iDevFound =0;
 int MdbDevFound =0;
 int MdbPresence = 0;
@@ -71,45 +71,44 @@ static void notifyCallback(
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
-    void onResult(BLEAdvertisedDevice Device){
-      //Serial.print("BLE Advertised Device found: ");
-      //Serial.println(Device.toString().c_str());
-      pServerAddress = new BLEAddress(Device.getAddress());
-      deviceFound = false;
-      mb.Hreg(0, deviceFound); // update local register with offset 0 by Status
-      int i;
-      for (i = 0; i < (sizeof(knownDevices) / sizeof(knownDevices[0])); i++) {
-        if (strcmp(pServerAddress->toString().c_str(), knownDevices[i].Mac.c_str()) == 0) {
-          Serial.print("Device found: ");
-          Serial.print(knownDevices[i].Name);
-          Serial.print(" RSSI= ");
-          Serial.println(Device.getRSSI());
-          deviceFound = true;
-          mb.Hreg(0, deviceFound); // update local register with offset 0 by Status
-          Device.getScan()->stop();
-          break;
-          //delay(100);
-        }
-      }
+    void onResult(BLEAdvertisedDevice advertisedDevice) {
+      //Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
+      mb.task();
     }
-}; 
-
+};
 
 void Bluetooth() {
   Serial.println();
   Serial.println("BLE Scan restarted.....");
-  BLEScanResults scanResults = pBLEScan->start(3);
-  Serial.println(scanResults.getCount());
+  BLEScanResults foundDevices = pBLEScan->start(2, false);
+  Serial.print("Devices found: ");
+  Serial.println(foundDevices.getCount());
+
+  deviceFound = false;
+  int i;
+  for (int i = 1; i<=foundDevices.getCount(); i++) {
+    //devName = foundDevices.getDevice(i).getName().c_str();
+    pServerAddress = new BLEAddress(foundDevices.getDevice(i).getAddress());  
+    for (u = 0; u < (sizeof(knownDevices) / sizeof(knownDevices[0])); u++) {
+      if (strcmp(pServerAddress->toString().c_str(), knownDevices[u].Mac.c_str()) == 0) {
+        Serial.print("Device found: ");
+        Serial.print(knownDevices[u].Name);
+        Serial.print(" RSSI= ");
+        //Serial.println(Device.getRSSI());
+        deviceFound = true;
+        break;
+      }
+    }
+  }
+
   pBLEScan->clearResults();
 
   if (deviceFound) {
     iDevFound = 5;
     Allume = true;
-    mb.Hreg(1, Allume); // update local register with offset 1 by Presence
   } else {
     if (iDevFound <1 ) {
       Allume = false;
-      mb.Hreg(1, Allume); // update local register with offset 1 by Presence
     } else {
       iDevFound--;
     }
@@ -198,14 +197,19 @@ void loop(void) {
   /************************************************/
   /*           Section MODBUS Main loop           */
   /************************************************/
-  Cptr++;
-  if (Cptr>65535) Cptr=0;
 
-  if(millis() >= time1_now + 50) { //Process MB client request each second
+  if(millis() >= time1_now + 20){ //Process MB client request each second
     time1_now = millis();
+    i++;
+    if (i>65535) i=0;
+
+    MdbDevFound = deviceFound;
+    MdbPresence = Allume;
 
     //Voir doc API PDF dans la librairie "modbus-esp8266-master"
-    mb.Hreg(2, Cptr); // update local register with offset 3 by counter
+    mb.Hreg(0, MdbDevFound); // update local register with offset 0 by Status
+    mb.Hreg(1, MdbPresence); // update local register with offset 1 by Presence
+    mb.Hreg(2, i); // update local register with offset 3 by counter
 
     //Call once inside loop() - all magic here
     mb.task();
