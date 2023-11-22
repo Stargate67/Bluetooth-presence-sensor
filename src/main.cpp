@@ -96,15 +96,6 @@ void setup() {
   knownDevices[1].IP = "";
 
   Serial.begin(115200);
-  pinMode(Lampe, OUTPUT);
-  digitalWrite(Lampe, LOW);
-  BLEDevice::init("");
-  pClient  = BLEDevice::createClient();
-  pBLEScan = BLEDevice::getScan();
-  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-  pBLEScan->setActiveScan(true);
-  Serial.println("Done");
-
 // Connect to Wi-Fi
   IPAddress ip(192, 168, 0, 48);   
   IPAddress gateway(192, 168, 0, 254);   
@@ -215,14 +206,10 @@ void loop() {
     mb.Hreg(2, i); // update local register with offset 3 by counter
   }
 
-  if(millis() >= time1_now + 50){ //Process MB client request each second
-    time1_now = millis();
-    //Call once inside loop() - all magic here
-    mb.task();
-  }
-=======
-    mb.Hreg(2, i); // update local register with offset 2 by counter
-  //}
+  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
+  server.begin();
+  Serial.println("HTTP server started");
+}
 
   //if(millis() >= time1_now + 50){ //Process MB client request each second
     time1_now = millis();
