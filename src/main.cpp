@@ -1,12 +1,22 @@
+/*
+  Rui Santos
+  Complete project details
+   - Arduino IDE: https://RandomNerdTutorials.com/esp32-ota-over-the-air-arduino/
+   - VS Code: https://RandomNerdTutorials.com/esp32-ota-over-the-air-vs-code/
+  
+  This sketch shows a Basic example from the AsyncElegantOTA library: ESP32_Async_Demo
+  https://github.com/ayushsharma82/AsyncElegantOTA
+*/
+
 #include <Arduino.h>
-#include "BLEDevice.h"
-#include "OTA.h"
-<<<<<<< HEAD
-//#include <ESP8266WiFi.h>
-//#include <ESPAsyncTCP.h>
-=======
->>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
+#include <WiFi.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncElegantOTA.h>
+#include "credentials.h"
 #include "ModbusIP_ESP8266.h"
+#include "BLEDevice.h"
+
 
 /************************************************/
 /*              Section MODBUS                  */
@@ -19,26 +29,26 @@ const int TEST_HREG = 1;
 //ModbusIP object
 ModbusIP mb;
 int i=0;
-int MdbStatus =0;
+int iDevFound =0;
+int MdbDevFound =0;
 int MdbPresence = 0;
-int period = 10000; //10s
+int period = 1; //10s
 unsigned long time_now = 0;
 unsigned long time1_now = 0;
   
 /************************************************/
 /*              FIN Section MODBUS              */
 /************************************************/
-<<<<<<< HEAD
 
-=======
->>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
 
 struct strDevices {
-String Name;
-String Mac;
-String IP;
+  String Name;
+  String Mac;
+  String IP;
 };
 
+//const char* ssid = "REPLACE_WITH_YOUR_SSID";
+//const char* password = "REPLACE_WITH_YOUR_PASSWORD";
 int Lampe = 33;
 static BLEAddress *pServerAddress;
 BLEScan* pBLEScan;
@@ -46,8 +56,8 @@ BLEClient*  pClient;
 bool deviceFound = false;
 bool Allume = false;
 
-strDevices knownDevices[5];
-
+strDevices knownDevices[3];
+ 
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
   uint8_t* pData,
@@ -61,10 +71,10 @@ static void notifyCallback(
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice Device){
-      Serial.print("BLE Advertised Device found: ");
-      Serial.println(Device.toString().c_str());
-      pServerAddress = new BLEAddress(Device.getAddress()); 
-      bool Master = false;
+      //Serial.print("BLE Advertised Device found: ");
+      //Serial.println(Device.toString().c_str());
+      pServerAddress = new BLEAddress(Device.getAddress());
+      deviceFound = false;
       int i;
       for (i = 0; i < (sizeof(knownDevices) / sizeof(knownDevices[0])); i++) {
         if (strcmp(pServerAddress->toString().c_str(), knownDevices[i].Mac.c_str()) == 0) {
@@ -72,20 +82,35 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
           Serial.print(knownDevices[i].Name);
           Serial.print(" RSSI= ");
           Serial.println(Device.getRSSI());
-          if (Device.getRSSI() > -85) {
-            deviceFound = true;
-          }
-          else {
-            deviceFound = false;
-          }
+          deviceFound = true;
           Device.getScan()->stop();
+          break;
           //delay(100);
         }
       }
     }
-};
+}; 
 
-void setup() {
+void Bluetooth() {
+  Serial.println();
+  Serial.println("BLE Scan restarted.....");
+  BLEScanResults scanResults = pBLEScan->start(3);
+  if (deviceFound) {
+    iDevFound = 5;
+    Allume = true;
+  } else {
+    if (iDevFound <1 ) {
+      Allume = false;
+    } else {
+      iDevFound--;
+    }
+  }
+}
+
+AsyncWebServer server(80);
+
+void setup(void) {
+  Serial.begin(115200);
 
   knownDevices[0].Name = "MI10S FY";
   knownDevices[0].Mac = "bc:6a:d1:b0:29:fc";
@@ -95,27 +120,49 @@ void setup() {
   knownDevices[1].Mac = "a4:c1:38:73:e7:47";
   knownDevices[1].IP = "";
 
-  Serial.begin(115200);
-// Connect to Wi-Fi
+  knownDevices[2].Name = "Spare";
+  knownDevices[2].Mac = "";
+  knownDevices[2].IP = "";
+  
+  knownDevices[3].Name = "Spare";
+  knownDevices[3].Mac = "";
+  knownDevices[3].IP = "";
+
+  BLEDevice::init("ESP32_BLESensor");
+  pClient  = BLEDevice::createClient();
+  pBLEScan = BLEDevice::getScan();
+  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+  pBLEScan->setActiveScan(true);
+  //pBLEScan->setInterval(100);
+  //pBLEScan->setWindow(99);  // less or equal setInterval value
+  Serial.println("Done");
+
+  // Connect to Wi-Fi
   IPAddress ip(192, 168, 0, 48);   
   IPAddress gateway(192, 168, 0, 254);   
   IPAddress subnet(255, 255, 255, 0);   
   WiFi.config(ip, gateway, subnet);
   WiFi.begin(ssid, password);
-  
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
-  }
+  Serial.println("");
 
-  // Print ESP32 Local IP Address
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(ssid);
+  Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-  
-<<<<<<< HEAD
-  setupOTA("BLE Sensor", ssid, password);
-=======
-  setupOTA("BLE_Sensor", ssid, password);
->>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
+
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Hi! I am ESP32.");
+  });
+
+  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
+  server.begin();
+  Serial.println("HTTP server started");
 
   /************************************************/
   /*              Section MODBUS SETUP            */
@@ -133,92 +180,33 @@ void setup() {
   /************************************************/
   /*     FIN Section MODBUS SETUP                 */
   /************************************************/
-<<<<<<< HEAD
 
-
-=======
-    /**
-   * Enable OTA update
-   */
-  ArduinoOTA.begin();
->>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
 }
 
-void Bluetooth() {
-  Serial.println();
-  Serial.println("BLE Scan restarted.....");
-  deviceFound = false;
-  BLEScanResults scanResults = pBLEScan->start(3);
-  if (deviceFound) {
-    //Serial.println("Allumer la lampe");
-    Allume = true;
-    digitalWrite(Lampe, HIGH);
-<<<<<<< HEAD
-    delay(10000);
-=======
-    //delay(10000);
->>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
-  } else {
-    Allume = false;
-    digitalWrite(Lampe, LOW);
-    //delay(1000);
-  }
-}
+void loop(void) {
 
-void loop() { 
-  #ifndef ESP32_RTOS
-    ArduinoOTA.handle();
-  #endif
-<<<<<<< HEAD
   Bluetooth();
 
-/************************************************/
+  /************************************************/
   /*           Section MODBUS Main loop           */
   /************************************************/
-    
-  if(millis() >= time_now + period) { //each 10 seconds
-=======
-  
-  //Bluetooth();
 
-  /************************************************/
-  /*           Section MODBUS Main loop           */
-  /************************************************/
-    
-  //if(millis() >= time_now + period) { //each 10 seconds
->>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
-    time_now = millis();
-    MdbStatus = Allume;
-    MdbPresence = Allume;
- 
-<<<<<<< HEAD
-    mb.Hreg(0, MdbStatus); // update local register with offset 0 by Temperature
-    mb.Hreg(1, MdbPresence); // update local register with offset 1 by Humidity
-=======
-    mb.Hreg(0, MdbStatus); // update local register with offset 0 by Status
-    mb.Hreg(1, MdbPresence); // update local register with offset 1 by Presence
->>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
- 
+  if(millis() >= time1_now + 50){ //Process MB client request each second
+    time1_now = millis();
+
     i++;
     if (i>65535) i=0;
+
+    MdbDevFound = deviceFound;
+    MdbPresence = Allume;
+
     //Voir doc API PDF dans la librairie "modbus-esp8266-master"
-<<<<<<< HEAD
+    mb.Hreg(0, MdbDevFound); // update local register with offset 0 by Status
+    mb.Hreg(1, MdbPresence); // update local register with offset 1 by Presence
     mb.Hreg(2, i); // update local register with offset 3 by counter
-  }
 
-  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
-  server.begin();
-  Serial.println("HTTP server started");
-}
-
-  //if(millis() >= time1_now + 50){ //Process MB client request each second
-    time1_now = millis();
     //Call once inside loop() - all magic here
     mb.task();
-  //}
->>>>>>> ea39291471d80a8abb98825aa950680ab0f0e867
-  /************************************************/
-  /*         FIN Section MODBUS Main loop         */
-  /************************************************/
+  }
 
 }
