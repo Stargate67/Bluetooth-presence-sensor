@@ -71,27 +71,27 @@ static void notifyCallback(
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
-    void onResult(BLEAdvertisedDevice Device){
-      //Serial.print("BLE Advertised Device found: ");
-      //Serial.println(Device.toString().c_str());
-      pServerAddress = new BLEAddress(Device.getAddress());
-      deviceFound = false;
-      mb.Hreg(0, deviceFound); // update local register with offset 0 by Status
-      int i;
-      for (i = 0; i < (sizeof(knownDevices) / sizeof(knownDevices[0])); i++) {
-        if (strcmp(pServerAddress->toString().c_str(), knownDevices[i].Mac.c_str()) == 0) {
-          Serial.print("Device found: ");
-          Serial.print(knownDevices[i].Name);
-          Serial.print(" RSSI= ");
-          Serial.println(Device.getRSSI());
-          deviceFound = true;
-          mb.Hreg(0, deviceFound); // update local register with offset 0 by Status
-          Device.getScan()->stop();
-          break;
-          //delay(100);
-        }
+  void onResult(BLEAdvertisedDevice Device){
+    //Serial.print("BLE Advertised Device found: ");
+    //Serial.println(Device.toString().c_str());
+    pServerAddress = new BLEAddress(Device.getAddress());
+    deviceFound = false;
+    mb.Hreg(0, deviceFound); // update local register with offset 0 by Status
+    int i;
+    for (i = 0; i < (sizeof(knownDevices) / sizeof(knownDevices[0])); i++) {
+      if (strcmp(pServerAddress->toString().c_str(), knownDevices[i].Mac.c_str()) == 0) {
+        Serial.print("Device found: ");
+        Serial.print(knownDevices[i].Name);
+        Serial.print(" RSSI= ");
+        Serial.println(Device.getRSSI());
+        deviceFound = true;
+        mb.Hreg(0, deviceFound); // update local register with offset 0 by Status
+        Device.getScan()->stop();
+        break;
+        //delay(100);
       }
     }
+  }
 }; 
 
 
@@ -99,6 +99,7 @@ void Bluetooth() {
   Serial.println();
   Serial.println("BLE Scan restarted.....");
   BLEScanResults scanResults = pBLEScan->start(3);
+  //BLEScanResults scanResults = pBLEScan->start(3, (*scanCompleteCB)(BLEScanResults), false);
   Serial.println(scanResults.getCount());
   pBLEScan->clearResults();
 
@@ -143,7 +144,7 @@ void setup(void) {
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true);
   pBLEScan->setInterval(100);
-  pBLEScan->setWindow(99);  // less or equal setInterval value
+  pBLEScan->setWindow(60);  // less or equal setInterval value
   Serial.println("Done");
 
   // Connect to Wi-Fi
@@ -210,4 +211,6 @@ void loop(void) {
     //Call once inside loop() - all magic here
     mb.task();
   }
+  //delay(3000);
+  //mb.task();
 }
