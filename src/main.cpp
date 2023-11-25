@@ -202,7 +202,7 @@ void loop(void) {
   Cptr++;
   if (Cptr>65535) Cptr=0;
 
-  if(millis() >= time1_now + 50) { //Process MB client request each second
+  if(millis() >= time1_now + 100) { //Process MB client request each second
     time1_now = millis();
 
     //Voir doc API PDF dans la librairie "modbus-esp8266-master"
