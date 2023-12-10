@@ -92,18 +92,13 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
   }
 }; 
 
-void OnScanResults(BLEScanResults scanResults){ 
-  Serial.println("Scan complete");
-}
 
 void Bluetooth() {
   Serial.println();
   Serial.println("BLE Scan restarted.....");
-  //BLEScanResults scanResults = pBLEScan->start(3);
-  //scanResults = scan->start(60, &OnScanResults, true);
-
-  pBLEScan->start(3, (&OnScanResults), false);
-  //Serial.println(scanResults.getCount());
+  BLEScanResults scanResults = pBLEScan->start(3);
+  //BLEScanResults scanResults = pBLEScan->start(3, (*scanCompleteCB)(BLEScanResults), false);
+  Serial.println(scanResults.getCount());
   pBLEScan->clearResults();
 
   if (deviceFound) {
