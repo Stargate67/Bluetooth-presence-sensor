@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include "esp32-hal-rgb-led.h"
 #include "credentials.h"
 #include "ModbusIP_ESP8266.h"
 #include "BLEDevice.h"
@@ -40,11 +41,12 @@ struct strDevices {
 //const char* ssid = "REPLACE_WITH_YOUR_SSID";
 //const char* password = "REPLACE_WITH_YOUR_PASSWORD";
 int Lampe = 33;
-static BLEAddress *pServerAddress;
+constexpr uint8_t WIFI_LED_PIN = 8;
 BLEScan* pBLEScan;
 BLEClient*  pClient;
 bool deviceFound = false;
 bool Allume = false;
+bool wifiLedOn = false;
 
 strDevices knownDevices[4];
  
@@ -61,23 +63,30 @@ static void notifyCallback(
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice Device){
-      //Serial.print("BLE Advertised Device found: ");
-      //Serial.println(Device.toString().c_str());
-      pServerAddress = new BLEAddress(Device.getAddress());
-      deviceFound = false;
-      mb.Hreg(0, deviceFound); // update local register with offset 0 by Status
-      int i;
-      for (i = 0; i < (sizeof(knownDevices) / sizeof(knownDevices[0])); i++) {
-        if (strcmp(pServerAddress->toString().c_str(), knownDevices[i].Mac.c_str()) == 0) {
+      String address = Device.getAddress().toString().c_str();
+
+      Serial.print("BLE | Nom=");
+      Serial.print(Device.haveName() ? Device.getName().c_str() : "(sans nom)");
+      Serial.print(" | RSSI=");
+      Serial.print(Device.getRSSI());
+      Serial.print(" dBm | ID=");
+      Serial.print(address);
+      Serial.print(" | UUID=");
+      if (Device.haveServiceUUID()) {
+        Serial.println(Device.getServiceUUID().toString().c_str());
+      } else {
+        Serial.println("(non annonce)");
+      }
+
+      for (size_t i = 0; i < (sizeof(knownDevices) / sizeof(knownDevices[0])); i++) {
+        if (strcmp(address.c_str(), knownDevices[i].Mac.c_str()) == 0) {
           Serial.print("Device found: ");
           Serial.print(knownDevices[i].Name);
-          Serial.print(" RSSI= ");
+          Serial.print(" RSSI=");
           Serial.println(Device.getRSSI());
           deviceFound = true;
           mb.Hreg(0, deviceFound); // update local register with offset 0 by Status
-          Device.getScan()->stop();
           break;
-          //delay(100);
         }
       }
     }
@@ -87,6 +96,8 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 void Bluetooth() {
   Serial.println();
   Serial.println("BLE Scan restarted.....");
+  deviceFound = false;
+  mb.Hreg(0, deviceFound);
   BLEScanResults scanResults = pBLEScan->start(3);
   Serial.println(scanResults.getCount());
   pBLEScan->clearResults();
@@ -107,8 +118,17 @@ void Bluetooth() {
 
 AsyncWebServer server(80);
 
+void updateWifiLed() {
+  bool connected = WiFi.status() == WL_CONNECTED;
+  if (connected != wifiLedOn) {
+    neopixelWrite(WIFI_LED_PIN, 0, 0, connected ? 32 : 0);
+    wifiLedOn = connected;
+  }
+}
+
 void setup(void) {
   Serial.begin(115200);
+  neopixelWrite(WIFI_LED_PIN, 0, 0, 0);
 
   knownDevices[0].Name = "MI10S FY";
   knownDevices[0].Mac = "bc:6a:d1:b0:29:fc";
@@ -148,6 +168,7 @@ void setup(void) {
     delay(500);
     Serial.print(".");
   }
+  updateWifiLed();
   Serial.println("");
   Serial.print("Connected to ");
   Serial.println(ssid);
@@ -182,6 +203,7 @@ void setup(void) {
 void loop(void) {
 
   Bluetooth();
+  updateWifiLed();
 
   /************************************************/
   /*           Section MODBUS Main loop           */
