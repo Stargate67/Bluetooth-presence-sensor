@@ -16,32 +16,6 @@
 #include "credentials.h"
 #include "ModbusIP_ESP8266.h"
 #include "BLEDevice.h"
-#include "OTA.h"
-//#include <ESP8266WiFi.h>
-//#include <ESPAsyncTCP.h>
-#include "ModbusIP_ESP8266.h"
-
-/************************************************/
-/*              Section MODBUS                  */
-/************************************************/
-
-// Modbus Registers Offsets
-const int TEST_HREG = 1;
-#define LEN 10
-
-//ModbusIP object
-ModbusIP mb;
-int i=0;
-int MdbStatus =0;
-int MdbPresence = 0;
-int period = 10000; //10s
-unsigned long time_now = 0;
-unsigned long time1_now = 0;
-  
-/************************************************/
-/*              FIN Section MODBUS              */
-/************************************************/
-
 
 
 /************************************************/
@@ -118,18 +92,13 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
   }
 }; 
 
-void OnScanResults(BLEScanResults scanResults){ 
-  Serial.println("Scan complete");
-}
 
 void Bluetooth() {
   Serial.println();
   Serial.println("BLE Scan restarted.....");
-  //BLEScanResults scanResults = pBLEScan->start(3);
-  //scanResults = scan->start(60, &OnScanResults, true);
-
-  pBLEScan->start(3, (&OnScanResults), false);
-  //Serial.println(scanResults.getCount());
+  BLEScanResults scanResults = pBLEScan->start(3);
+  //BLEScanResults scanResults = pBLEScan->start(3, (*scanCompleteCB)(BLEScanResults), false);
+  Serial.println(scanResults.getCount());
   pBLEScan->clearResults();
 
   if (deviceFound) {
@@ -176,28 +145,12 @@ void setup(void) {
   pBLEScan->setWindow(60);  // less or equal setInterval value
   Serial.println("Done");
 
-<<<<<<< HEAD
-// Connect to Wi-Fi
-=======
   // Connect to Wi-Fi
->>>>>>> a5c81009cca562417509b00e800cc3248a312a73
   IPAddress ip(192, 168, 0, 48);   
   IPAddress gateway(192, 168, 0, 254);   
   IPAddress subnet(255, 255, 255, 0);   
   WiFi.config(ip, gateway, subnet);
   WiFi.begin(ssid, password);
-<<<<<<< HEAD
-  
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
-  }
-
-  // Print ESP32 Local IP Address
-  Serial.println(WiFi.localIP());
-  
-  setupOTA("BLE Sensor", ssid, password);
-=======
   Serial.println("");
 
   // Wait for connection
@@ -218,7 +171,6 @@ void setup(void) {
   AsyncElegantOTA.begin(&server);    // Start ElegantOTA
   server.begin();
   Serial.println("HTTP server started");
->>>>>>> a5c81009cca562417509b00e800cc3248a312a73
 
   /************************************************/
   /*              Section MODBUS SETUP            */
@@ -236,63 +188,6 @@ void setup(void) {
   /************************************************/
   /*     FIN Section MODBUS SETUP                 */
   /************************************************/
-<<<<<<< HEAD
-
-
-}
-
-void Bluetooth() {
-  Serial.println();
-  Serial.println("BLE Scan restarted.....");
-  deviceFound = false;
-  BLEScanResults scanResults = pBLEScan->start(5);
-  if (deviceFound) {
-    //Serial.println("Allumer la lampe");
-    Allume = true;
-    digitalWrite(Lampe, HIGH);
-    delay(10000);
-  } else {
-    Allume = false;
-    digitalWrite(Lampe, LOW);
-    delay(1000);
-  }
-}
-
-void loop() { 
-  #ifndef ESP32_RTOS
-    ArduinoOTA.handle();
-  #endif
-  Bluetooth();
-
-/************************************************/
-  /*           Section MODBUS Main loop           */
-  /************************************************/
-    
-  if(millis() >= time_now + period) { //each 10 seconds
-    time_now = millis();
-    MdbStatus = Allume;
-    MdbPresence = Allume;
- 
-    mb.Hreg(0, MdbStatus); // update local register with offset 0 by Temperature
-    mb.Hreg(1, MdbPresence); // update local register with offset 1 by Humidity
- 
-    i++;
-    if (i>65535) i=0;
-    //Voir doc API PDF dans la librairie "modbus-esp8266-master"
-    mb.Hreg(2, i); // update local register with offset 3 by counter
-  }
-
-  if(millis() >= time1_now + 50){ //Process MB client request each second
-    time1_now = millis();
-    //Call once inside loop() - all magic here
-    mb.task();
-  }
-  /************************************************/
-  /*         FIN Section MODBUS Main loop         */
-  /************************************************/
-
-}
-=======
 }
 
 void loop(void) {
@@ -317,4 +212,3 @@ void loop(void) {
   //delay(3000);
   //mb.task();
 }
->>>>>>> a5c81009cca562417509b00e800cc3248a312a73

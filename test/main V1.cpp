@@ -16,10 +16,7 @@
 #include "credentials.h"
 #include "ModbusIP_ESP8266.h"
 #include "BLEDevice.h"
-#include "OTA.h"
-//#include <ESP8266WiFi.h>
-//#include <ESPAsyncTCP.h>
-#include "ModbusIP_ESP8266.h"
+
 
 /************************************************/
 /*              Section MODBUS                  */
@@ -32,29 +29,7 @@ const int TEST_HREG = 1;
 //ModbusIP object
 ModbusIP mb;
 int i=0;
-int MdbStatus =0;
-int MdbPresence = 0;
-int period = 10000; //10s
-unsigned long time_now = 0;
-unsigned long time1_now = 0;
-  
-/************************************************/
-/*              FIN Section MODBUS              */
-/************************************************/
-
-
-
-/************************************************/
-/*              Section MODBUS                  */
-/************************************************/
-// Modbus Registers Offsets
-const int TEST_HREG = 1;
-#define LEN 10
-
-//ModbusIP object
-ModbusIP mb;
-int i=0;
-int Cptr=0;
+int u=0;
 int iDevFound =0;
 int MdbDevFound =0;
 int MdbPresence = 0;
@@ -65,6 +40,7 @@ unsigned long time1_now = 0;
 /************************************************/
 /*              FIN Section MODBUS              */
 /************************************************/
+
 
 struct strDevices {
   String Name;
@@ -95,51 +71,44 @@ static void notifyCallback(
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
-  void onResult(BLEAdvertisedDevice Device){
-    //Serial.print("BLE Advertised Device found: ");
-    //Serial.println(Device.toString().c_str());
-    pServerAddress = new BLEAddress(Device.getAddress());
-    deviceFound = false;
-    mb.Hreg(0, deviceFound); // update local register with offset 0 by Status
-    int i;
-    for (i = 0; i < (sizeof(knownDevices) / sizeof(knownDevices[0])); i++) {
-      if (strcmp(pServerAddress->toString().c_str(), knownDevices[i].Mac.c_str()) == 0) {
-        Serial.print("Device found: ");
-        Serial.print(knownDevices[i].Name);
-        Serial.print(" RSSI= ");
-        Serial.println(Device.getRSSI());
-        deviceFound = true;
-        mb.Hreg(0, deviceFound); // update local register with offset 0 by Status
-        Device.getScan()->stop();
-        break;
-        //delay(100);
-      }
+    void onResult(BLEAdvertisedDevice advertisedDevice) {
+      //Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
+      mb.task();
     }
-  }
-}; 
-
-void OnScanResults(BLEScanResults scanResults){ 
-  Serial.println("Scan complete");
-}
+};
 
 void Bluetooth() {
   Serial.println();
   Serial.println("BLE Scan restarted.....");
-  //BLEScanResults scanResults = pBLEScan->start(3);
-  //scanResults = scan->start(60, &OnScanResults, true);
+  BLEScanResults foundDevices = pBLEScan->start(2, false);
+  Serial.print("Devices found: ");
+  Serial.println(foundDevices.getCount());
 
-  pBLEScan->start(3, (&OnScanResults), false);
-  //Serial.println(scanResults.getCount());
+  deviceFound = false;
+  int i;
+  for (int i = 1; i<=foundDevices.getCount(); i++) {
+    //devName = foundDevices.getDevice(i).getName().c_str();
+    pServerAddress = new BLEAddress(foundDevices.getDevice(i).getAddress());  
+    for (u = 0; u < (sizeof(knownDevices) / sizeof(knownDevices[0])); u++) {
+      if (strcmp(pServerAddress->toString().c_str(), knownDevices[u].Mac.c_str()) == 0) {
+        Serial.print("Device found: ");
+        Serial.print(knownDevices[u].Name);
+        Serial.print(" RSSI= ");
+        //Serial.println(Device.getRSSI());
+        deviceFound = true;
+        break;
+      }
+    }
+  }
+
   pBLEScan->clearResults();
 
   if (deviceFound) {
     iDevFound = 5;
     Allume = true;
-    mb.Hreg(1, Allume); // update local register with offset 1 by Presence
   } else {
     if (iDevFound <1 ) {
       Allume = false;
-      mb.Hreg(1, Allume); // update local register with offset 1 by Presence
     } else {
       iDevFound--;
     }
@@ -173,31 +142,15 @@ void setup(void) {
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true);
   pBLEScan->setInterval(100);
-  pBLEScan->setWindow(60);  // less or equal setInterval value
+  pBLEScan->setWindow(99);  // less or equal setInterval value
   Serial.println("Done");
 
-<<<<<<< HEAD
-// Connect to Wi-Fi
-=======
   // Connect to Wi-Fi
->>>>>>> a5c81009cca562417509b00e800cc3248a312a73
   IPAddress ip(192, 168, 0, 48);   
   IPAddress gateway(192, 168, 0, 254);   
   IPAddress subnet(255, 255, 255, 0);   
   WiFi.config(ip, gateway, subnet);
   WiFi.begin(ssid, password);
-<<<<<<< HEAD
-  
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
-  }
-
-  // Print ESP32 Local IP Address
-  Serial.println(WiFi.localIP());
-  
-  setupOTA("BLE Sensor", ssid, password);
-=======
   Serial.println("");
 
   // Wait for connection
@@ -218,7 +171,6 @@ void setup(void) {
   AsyncElegantOTA.begin(&server);    // Start ElegantOTA
   server.begin();
   Serial.println("HTTP server started");
->>>>>>> a5c81009cca562417509b00e800cc3248a312a73
 
   /************************************************/
   /*              Section MODBUS SETUP            */
@@ -236,63 +188,6 @@ void setup(void) {
   /************************************************/
   /*     FIN Section MODBUS SETUP                 */
   /************************************************/
-<<<<<<< HEAD
-
-
-}
-
-void Bluetooth() {
-  Serial.println();
-  Serial.println("BLE Scan restarted.....");
-  deviceFound = false;
-  BLEScanResults scanResults = pBLEScan->start(5);
-  if (deviceFound) {
-    //Serial.println("Allumer la lampe");
-    Allume = true;
-    digitalWrite(Lampe, HIGH);
-    delay(10000);
-  } else {
-    Allume = false;
-    digitalWrite(Lampe, LOW);
-    delay(1000);
-  }
-}
-
-void loop() { 
-  #ifndef ESP32_RTOS
-    ArduinoOTA.handle();
-  #endif
-  Bluetooth();
-
-/************************************************/
-  /*           Section MODBUS Main loop           */
-  /************************************************/
-    
-  if(millis() >= time_now + period) { //each 10 seconds
-    time_now = millis();
-    MdbStatus = Allume;
-    MdbPresence = Allume;
- 
-    mb.Hreg(0, MdbStatus); // update local register with offset 0 by Temperature
-    mb.Hreg(1, MdbPresence); // update local register with offset 1 by Humidity
- 
-    i++;
-    if (i>65535) i=0;
-    //Voir doc API PDF dans la librairie "modbus-esp8266-master"
-    mb.Hreg(2, i); // update local register with offset 3 by counter
-  }
-
-  if(millis() >= time1_now + 50){ //Process MB client request each second
-    time1_now = millis();
-    //Call once inside loop() - all magic here
-    mb.task();
-  }
-  /************************************************/
-  /*         FIN Section MODBUS Main loop         */
-  /************************************************/
-
-}
-=======
 }
 
 void loop(void) {
@@ -302,19 +197,21 @@ void loop(void) {
   /************************************************/
   /*           Section MODBUS Main loop           */
   /************************************************/
-  Cptr++;
-  if (Cptr>65535) Cptr=0;
 
-  if(millis() >= time1_now + 100) { //Process MB client request each second
+  if(millis() >= time1_now + 20){ //Process MB client request each second
     time1_now = millis();
+    i++;
+    if (i>65535) i=0;
+
+    MdbDevFound = deviceFound;
+    MdbPresence = Allume;
 
     //Voir doc API PDF dans la librairie "modbus-esp8266-master"
-    mb.Hreg(2, Cptr); // update local register with offset 3 by counter
+    mb.Hreg(0, MdbDevFound); // update local register with offset 0 by Status
+    mb.Hreg(1, MdbPresence); // update local register with offset 1 by Presence
+    mb.Hreg(2, i); // update local register with offset 3 by counter
 
     //Call once inside loop() - all magic here
     mb.task();
   }
-  //delay(3000);
-  //mb.task();
 }
->>>>>>> a5c81009cca562417509b00e800cc3248a312a73
