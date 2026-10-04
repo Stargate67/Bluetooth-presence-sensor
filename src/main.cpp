@@ -1,18 +1,7 @@
-/*
-  Rui Santos
-  Complete project details
-   - Arduino IDE: https://RandomNerdTutorials.com/esp32-ota-over-the-air-arduino/
-   - VS Code: https://RandomNerdTutorials.com/esp32-ota-over-the-air-vs-code/
-  
-  This sketch shows a Basic example from the AsyncElegantOTA library: ESP32_Async_Demo
-  https://github.com/ayushsharma82/AsyncElegantOTA
-*/
-
 #include <Arduino.h>
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <AsyncElegantOTA.h>
 #include "credentials.h"
 #include "ModbusIP_ESP8266.h"
 #include "BLEDevice.h"
@@ -57,7 +46,7 @@ BLEClient*  pClient;
 bool deviceFound = false;
 bool Allume = false;
 
-strDevices knownDevices[3];
+strDevices knownDevices[4];
  
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
@@ -169,7 +158,6 @@ void setup(void) {
     request->send(200, "text/plain", "Hi! I am ESP32.");
   });
 
-  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
   server.begin();
   Serial.println("HTTP server started");
 
