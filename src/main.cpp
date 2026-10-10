@@ -41,7 +41,6 @@ struct strDevices {
 
 //const char* ssid = "REPLACE_WITH_YOUR_SSID";
 //const char* password = "REPLACE_WITH_YOUR_PASSWORD";
-int Lampe = 33;
 constexpr uint8_t WIFI_LED_PIN = 2;
 BLEScan* pBLEScan;
 BLEClient*  pClient;
