@@ -2,11 +2,14 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include "esp32-hal-rgb-led.h"
 #include "credentials.h"
 #include "ModbusIP_ESP8266.h"
 #include "BLEDevice.h"
+#include <Adafruit_SSD1306.h>
+#include <Wire.h>
+#include <ArduinoOTA.h>
 
+Adafruit_SSD1306 oled(128, 64, &Wire, 16);
 
 /************************************************/
 /*              Section MODBUS                  */
@@ -31,7 +34,6 @@ unsigned long time1_now = 0;
 /*              FIN Section MODBUS              */
 /************************************************/
 
-
 struct strDevices {
   String Name;
   String Mac;
@@ -41,14 +43,14 @@ struct strDevices {
 //const char* ssid = "REPLACE_WITH_YOUR_SSID";
 //const char* password = "REPLACE_WITH_YOUR_PASSWORD";
 int Lampe = 33;
-constexpr uint8_t WIFI_LED_PIN = 8;
+constexpr uint8_t WIFI_LED_PIN = 2;
 BLEScan* pBLEScan;
 BLEClient*  pClient;
 bool deviceFound = false;
 bool Allume = false;
 bool wifiLedOn = false;
 
-strDevices knownDevices[4];
+strDevices knownDevices[7];
  
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
@@ -72,6 +74,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       Serial.print(" dBm | ID=");
       Serial.print(address);
       Serial.print(" | UUID=");
+
       if (Device.haveServiceUUID()) {
         Serial.println(Device.getServiceUUID().toString().c_str());
       } else {
@@ -92,13 +95,12 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     }
 }; 
 
-
 void Bluetooth() {
   Serial.println();
   Serial.println("BLE Scan restarted.....");
   deviceFound = false;
   mb.Hreg(0, deviceFound);
-  BLEScanResults scanResults = pBLEScan->start(3);
+  BLEScanResults scanResults = pBLEScan->start(2); // Scan de 2 secondes
   Serial.println(scanResults.getCount());
   pBLEScan->clearResults();
 
@@ -121,14 +123,46 @@ AsyncWebServer server(80);
 void updateWifiLed() {
   bool connected = WiFi.status() == WL_CONNECTED;
   if (connected != wifiLedOn) {
-    neopixelWrite(WIFI_LED_PIN, 0, 0, connected ? 32 : 0);
+    digitalWrite(WIFI_LED_PIN, connected ? HIGH : LOW);
     wifiLedOn = connected;
   }
 }
 
 void setup(void) {
   Serial.begin(115200);
-  neopixelWrite(WIFI_LED_PIN, 0, 0, 0);
+
+  Wire.begin(4, 15); // SDA, SCL
+  delay(100);
+
+  pinMode(16, OUTPUT);
+  digitalWrite(16, LOW);
+  delay(50);
+  digitalWrite(16, HIGH);
+  delay(50);
+
+  Serial.println("Recherche I2C...");
+  for (uint8_t address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() == 0) {
+      Serial.printf("Peripherique I2C trouve: 0x%02X\n", address);
+    }
+  }
+  
+  if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("Echec allocation OLED");
+  } else {
+    oled.clearDisplay();
+    oled.setTextSize(1);
+    oled.setTextColor(SSD1306_WHITE);
+    oled.setCursor(0, 0);
+    oled.println("BLE Sensor");
+    oled.println("OLED OK");
+    oled.display();
+    Serial.println("Test OLED envoye");
+  }
+
+  pinMode(WIFI_LED_PIN, OUTPUT);
+  digitalWrite(WIFI_LED_PIN, LOW);
 
   knownDevices[0].Name = "MI10S FY";
   knownDevices[0].Mac = "bc:6a:d1:b0:29:fc";
@@ -138,21 +172,33 @@ void setup(void) {
   knownDevices[1].Mac = "a4:c1:38:73:e7:47";
   knownDevices[1].IP = "";
 
-  knownDevices[2].Name = "Spare";
-  knownDevices[2].Mac = "";
+  knownDevices[2].Name = "VOS Tag 1";
+  knownDevices[2].Mac = "e1:16:5d:75:20:88";
   knownDevices[2].IP = "";
   
-  knownDevices[3].Name = "Spare";
-  knownDevices[3].Mac = "";
+  knownDevices[3].Name = "VOS Tag 2";
+  knownDevices[3].Mac = "fe:40:05:04:9b:2d";
   knownDevices[3].IP = "";
+
+  knownDevices[4].Name = "VOS Tag 3";
+  knownDevices[4].Mac = "c4:e7:10:83:7b:cc";
+  knownDevices[4].IP = "";
+  
+  knownDevices[5].Name = "VOS Tag 4";
+  knownDevices[5].Mac = "cb:bd:fe:d2:8a:fb";
+  knownDevices[5].IP = "";
+
+  knownDevices[6].Name = "HONOR Band Yves";
+  knownDevices[6].Mac = "18:d9:8f:54:22:e1";
+  knownDevices[6].IP = "";
 
   BLEDevice::init("ESP32_BLESensor");
   pClient  = BLEDevice::createClient();
   pBLEScan = BLEDevice::getScan();
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-  pBLEScan->setActiveScan(true);
-  pBLEScan->setInterval(100);
-  pBLEScan->setWindow(99);  // less or equal setInterval value
+  pBLEScan->setActiveScan(false); // Les adresses suffisent pour identifier vos appareils
+  pBLEScan->setInterval(160);     // 100 ms
+  pBLEScan->setWindow(80);        // 50 ms d'écoute
   Serial.println("Done");
 
   // Connect to Wi-Fi
@@ -163,8 +209,11 @@ void setup(void) {
   WiFi.begin(ssid, password);
   Serial.println("");
 
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
+  // Keep the search indication visible even if Wi-Fi connects quickly.
+  unsigned long wifiSearchStartedAt = millis();
+  while (WiFi.status() != WL_CONNECTED || millis() - wifiSearchStartedAt < 2000) {
+    wifiLedOn = !wifiLedOn;
+    digitalWrite(WIFI_LED_PIN, wifiLedOn ? HIGH : LOW);
     delay(500);
     Serial.print(".");
   }
@@ -174,6 +223,19 @@ void setup(void) {
   Serial.println(ssid);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+
+  ArduinoOTA.setHostname("ESP32_BLESensor");
+  ArduinoOTA.onStart([]() {
+    Serial.println("Mise a jour OTA demarree");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nMise a jour OTA terminee");
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Erreur OTA: %u\n", error);
+  });
+  ArduinoOTA.begin();
+  Serial.println("OTA pret");
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "Hi! I am ESP32.");
@@ -198,11 +260,17 @@ void setup(void) {
   /************************************************/
   /*     FIN Section MODBUS SETUP                 */
   /************************************************/
+
 }
 
 void loop(void) {
+  ArduinoOTA.handle();
 
-  Bluetooth();
+  if (millis() - time_now >= 5000) { // Un scan toutes les 5 secondes
+    time_now = millis();
+    Bluetooth();
+  }
+
   updateWifiLed();
 
   /************************************************/
