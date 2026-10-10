@@ -251,23 +251,23 @@ void setup(void) {
   knownDevices[1].Mac = "a4:c1:38:73:e7:47";
   knownDevices[1].IP = "";
 
-  knownDevices[2].Name = "VOS Tag 1";
-  knownDevices[2].Mac = "e1:16:5d:75:20:88";
+  knownDevices[2].Name = "";
+  knownDevices[2].Mac = "";
   knownDevices[2].IP = "";
   
-  knownDevices[3].Name = "VOS Tag 2";
-  knownDevices[3].Mac = "fe:40:05:04:9b:2d";
+  knownDevices[3].Name = "";
+  knownDevices[3].Mac = "";
   knownDevices[3].IP = "";
 
-  knownDevices[4].Name = "VOS Tag 3";
-  knownDevices[4].Mac = "c4:e7:10:83:7b:cc";
+  knownDevices[4].Name = "";
+  knownDevices[4].Mac = "";
   knownDevices[4].IP = "";
   
-  knownDevices[5].Name = "VOS Tag 4";
-  knownDevices[5].Mac = "cb:bd:fe:d2:8a:fb";
+  knownDevices[5].Name = "";
+  knownDevices[5].Mac = "";
   knownDevices[5].IP = "";
 
-  knownDevices[6].Name = "HONOR Band Yves";
+  knownDevices[6].Name = "HONOR Band 5 Muriel";
   knownDevices[6].Mac = "18:d9:8f:54:22:e1";
   knownDevices[6].IP = "";
 
