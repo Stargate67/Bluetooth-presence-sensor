@@ -5,11 +5,10 @@
 #include "credentials.h"
 #include "ModbusIP_ESP8266.h"
 #include "BLEDevice.h"
-#include <Adafruit_SSD1306.h>
-#include <Wire.h>
+#include <TFT_eSPI.h>
 #include <ArduinoOTA.h>
 
-Adafruit_SSD1306 oled(128, 64, &Wire, 16);
+TFT_eSPI tft = TFT_eSPI();
 
 /************************************************/
 /*              Section MODBUS                  */
@@ -51,6 +50,103 @@ bool Allume = false;
 bool wifiLedOn = false;
 
 strDevices knownDevices[7];
+
+struct strScannedDevice {
+  String Name;
+  String Mac;
+  int RSSI;
+  bool Known;
+};
+
+constexpr size_t MAX_DISPLAYED_DEVICES = 8;
+strScannedDevice scannedDevices[MAX_DISPLAYED_DEVICES];
+size_t scannedDeviceCount = 0;
+int scannedTotalCount = 0;
+
+void rememberScannedDevice(BLEAdvertisedDevice& device, const String& address) {
+  String name = device.haveName() ? device.getName().c_str() : "(sans nom)";
+  bool known = false;
+
+  for (size_t i = 0; i < (sizeof(knownDevices) / sizeof(knownDevices[0])); i++) {
+    if (address == knownDevices[i].Mac) {
+      name = knownDevices[i].Name;
+      known = true;
+      break;
+    }
+  }
+
+  size_t slot = scannedDeviceCount;
+  for (size_t i = 0; i < scannedDeviceCount; i++) {
+    if (scannedDevices[i].Mac == address) {
+      slot = i;
+      break;
+    }
+  }
+
+  if (slot == scannedDeviceCount) {
+    if (scannedDeviceCount < MAX_DISPLAYED_DEVICES) {
+      scannedDeviceCount++;
+    } else {
+      slot = 0;
+      for (size_t i = 1; i < scannedDeviceCount; i++) {
+        if (scannedDevices[i].RSSI < scannedDevices[slot].RSSI) {
+          slot = i;
+        }
+      }
+      if (device.getRSSI() <= scannedDevices[slot].RSSI) {
+        return;
+      }
+    }
+  }
+
+  scannedDevices[slot].Name = name;
+  scannedDevices[slot].Mac = address;
+  scannedDevices[slot].RSSI = device.getRSSI();
+  scannedDevices[slot].Known = known;
+}
+
+void drawScanScreen() {
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+  tft.drawString("BLE SCAN " + String(scannedTotalCount), 4, 2, 2);
+  tft.drawFastHLine(4, 21, tft.width() - 8, TFT_DARKGREY);
+
+  size_t visibleCount = scannedDeviceCount < 5 ? scannedDeviceCount : 5;
+  int order[MAX_DISPLAYED_DEVICES];
+  for (size_t i = 0; i < scannedDeviceCount; i++) {
+    order[i] = i;
+  }
+  for (size_t i = 0; i < scannedDeviceCount; i++) {
+    for (size_t j = i + 1; j < scannedDeviceCount; j++) {
+      if (scannedDevices[order[j]].RSSI > scannedDevices[order[i]].RSSI) {
+        int temp = order[i];
+        order[i] = order[j];
+        order[j] = temp;
+      }
+    }
+  }
+
+  if (visibleCount == 0) {
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawString("Aucun appareil BLE", 4, 42, 2);
+  }
+
+  for (size_t i = 0; i < visibleCount; i++) {
+    strScannedDevice& device = scannedDevices[order[i]];
+    String name = device.Known ? "* " + device.Name : device.Name;
+    while (name.length() > 0 && tft.textWidth(name, 2) > 166) {
+      name.remove(name.length() - 1);
+    }
+    tft.setTextColor(device.Known ? TFT_GREENYELLOW : TFT_WHITE, TFT_BLACK);
+    tft.drawString(name, 4, 25 + i * 17, 2);
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.drawString(String(device.RSSI) + "dBm", 183, 25 + i * 17, 2);
+  }
+
+  tft.drawFastHLine(4, 112, tft.width() - 8, TFT_DARKGREY);
+  tft.setTextColor(Allume ? TFT_GREEN : TFT_RED, TFT_BLACK);
+  tft.drawString(Allume ? "PRESENCE: OUI" : "PRESENCE: NON", 4, 116, 2);
+}
  
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
@@ -81,6 +177,8 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
         Serial.println("(non annonce)");
       }
 
+      rememberScannedDevice(Device, address);
+
       for (size_t i = 0; i < (sizeof(knownDevices) / sizeof(knownDevices[0])); i++) {
         if (strcmp(address.c_str(), knownDevices[i].Mac.c_str()) == 0) {
           Serial.print("Device found: ");
@@ -99,9 +197,11 @@ void Bluetooth() {
   Serial.println();
   Serial.println("BLE Scan restarted.....");
   deviceFound = false;
+  scannedDeviceCount = 0;
   mb.Hreg(0, deviceFound);
   BLEScanResults scanResults = pBLEScan->start(2); // Scan de 2 secondes
-  Serial.println(scanResults.getCount());
+  scannedTotalCount = scanResults.getCount();
+  Serial.println(scannedTotalCount);
   pBLEScan->clearResults();
 
   if (deviceFound) {
@@ -116,6 +216,8 @@ void Bluetooth() {
       iDevFound--;
     }
   }
+
+  drawScanScreen();
 }
 
 AsyncWebServer server(80);
@@ -131,35 +233,13 @@ void updateWifiLed() {
 void setup(void) {
   Serial.begin(115200);
 
-  Wire.begin(4, 15); // SDA, SCL
-  delay(100);
-
-  pinMode(16, OUTPUT);
-  digitalWrite(16, LOW);
-  delay(50);
-  digitalWrite(16, HIGH);
-  delay(50);
-
-  Serial.println("Recherche I2C...");
-  for (uint8_t address = 1; address < 127; address++) {
-    Wire.beginTransmission(address);
-    if (Wire.endTransmission() == 0) {
-      Serial.printf("Peripherique I2C trouve: 0x%02X\n", address);
-    }
-  }
-  
-  if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println("Echec allocation OLED");
-  } else {
-    oled.clearDisplay();
-    oled.setTextSize(1);
-    oled.setTextColor(SSD1306_WHITE);
-    oled.setCursor(0, 0);
-    oled.println("BLE Sensor");
-    oled.println("OLED OK");
-    oled.display();
-    Serial.println("Test OLED envoye");
-  }
+  tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+  tft.drawString("BLE Sensor", 4, 8, 4);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString("Initialisation...", 4, 48, 2);
 
   pinMode(WIFI_LED_PIN, OUTPUT);
   digitalWrite(WIFI_LED_PIN, LOW);
@@ -196,7 +276,7 @@ void setup(void) {
   pClient  = BLEDevice::createClient();
   pBLEScan = BLEDevice::getScan();
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-  pBLEScan->setActiveScan(false); // Les adresses suffisent pour identifier vos appareils
+  pBLEScan->setActiveScan(true);
   pBLEScan->setInterval(160);     // 100 ms
   pBLEScan->setWindow(80);        // 50 ms d'écoute
   Serial.println("Done");
